@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"time"
 )
+
 func main() {
 	cfg := config.LoadConfig()
 	logLevel, err := log.ParseLevel(cfg.LogLevel)
@@ -18,11 +19,11 @@ func main() {
 	switch cfg.LogFormat {
 	case "prettyjson":
 		log.SetFormatter(&log.JSONFormatter{
-			PrettyPrint:       true,
+			PrettyPrint: true,
 		})
 	case "json":
 		log.SetFormatter(&log.JSONFormatter{
-			PrettyPrint:       false,
+			PrettyPrint: false,
 		})
 	default:
 		log.SetFormatter(&log.TextFormatter{})
@@ -57,10 +58,10 @@ func main() {
 	log.WithField("peopleCount", peopleCount).Debug("Connected to people database")
 
 	httpServer := &http.Server{
-		Addr:              ":8080",
-		Handler:           container,
-		ReadTimeout:       10 * time.Second,
-		WriteTimeout:      10 * time.Second,
+		Addr:         ":8080",
+		Handler:      container,
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 10 * time.Second,
 	}
 	log.Infof("Server listening on %s", cfg.Port)
 	log.Fatal(httpServer.ListenAndServe())

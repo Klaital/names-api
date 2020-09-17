@@ -4,7 +4,7 @@ services:
     image: klaital/names-web:latest
     ports:
       - "8080:8080"
-    command: ./names-web
+    command: /names-web
     env_file:
       - ./db.env
     environment:
@@ -13,3 +13,5 @@ services:
       - LOG_STYLE=prettyjson
       - MIGRATION_LOCATION=file:///db/migrations
       - DB_DRIVER=mysql
+      - 'DB_PASS=namer#008'
+

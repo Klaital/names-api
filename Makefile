@@ -1,19 +1,19 @@
 GOOS := linux
-VERSION := 1.0.0
+VERSION := latest
 
-.PHONY: build image push
+.PHONY: build image push run
 
 build: bin/names-web
 
 
-bin/names-web: web/*.go pkg/config/*.go pkg/people/*.go
-    go build -o bin/names-web ./cmd/web
+bin/names-web: cmd/web/*.go pkg/config/*.go pkg/people/*.go
+	go build -o bin/names-web ./cmd/web
 
-image:
-    docker build -t klaital/names-web$(VERSION) .
+image: build
+	docker build -t klaital/names-web:$(VERSION) .
 
 push: image
-    docker push klaital/names-web$(VERSION)
+	docker push klaital/names-web:$(VERSION)
 
 run: image
-    docker run --rm klaital/names-web$(VERSION)
+	docker-compose up

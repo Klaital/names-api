@@ -10,26 +10,27 @@ import (
 )
 
 type ServiceConfig struct {
-	LogLevel string `env:"LOG_LEVEL" envDefault:"debug"`
-	parsedLogLevel *log.Level
-	LogFormat string `env:"LOG_FORMAT" envDefault:"prettyjson"`
+	LogLevel        string `env:"LOG_LEVEL" envDefault:"debug"`
+	parsedLogLevel  *log.Level
+	LogFormat       string `env:"LOG_FORMAT" envDefault:"prettyjson"`
 	parsedFormatter log.Formatter
-	baseLogger *log.Entry
+	baseLogger      *log.Entry
 
 	Port string `env:"PORT" envDefault:"8080"`
 
-	DatabaseHost string `env:"DB_HOST" envDefault:"mysql.abandonedfactory.net"`
-	DatabaseName string `env:"DB_NAME" envDefault:"af_names"`
-	DatabasePort int `env:"DB_PORT" envDefault:"3306"`
-	DatabaseUser string `env:"DB_USER" envDefault:"af_namer"`
-	DatabasePass string `env:"DB_PASS"`
+	DatabaseHost   string `env:"DB_HOST" envDefault:"mysql.abandonedfactory.net"`
+	DatabaseName   string `env:"DB_NAME" envDefault:"af_names"`
+	DatabasePort   int    `env:"DB_PORT" envDefault:"3306"`
+	DatabaseUser   string `env:"DB_USER" envDefault:"af_namer"`
+	DatabasePass   string `env:"DB_PASS"`
 	DatabaseDriver string `env:"DB_DRIVER" envDefault:"mysql"`
-	db *sqlx.DB
+	db             *sqlx.DB
 }
+
 //namer$006
 
 func (cfg *ServiceConfig) getDbDSN() string {
-	return fmt.Sprintf("%s:%s@%s:%d/%s",
+	return fmt.Sprintf("%s:%s@tcp(%s:%d)/%s",
 		cfg.DatabaseUser,
 		cfg.DatabasePass,
 		cfg.DatabaseHost,
@@ -49,6 +50,7 @@ func (cfg *ServiceConfig) GetDbConn() (*sqlx.DB, error) {
 }
 
 var singletonConfig *ServiceConfig
+
 func LoadConfig() *ServiceConfig {
 	if singletonConfig == nil {
 		cfg := new(ServiceConfig)
@@ -79,11 +81,11 @@ func (cfg *ServiceConfig) GetLogger() *log.Entry {
 		switch cfg.LogFormat {
 		case "prettyjson":
 			cfg.parsedFormatter = &log.JSONFormatter{
-				PrettyPrint:       true,
+				PrettyPrint: true,
 			}
 		case "json":
 			cfg.parsedFormatter = &log.JSONFormatter{
-				PrettyPrint:       false,
+				PrettyPrint: false,
 			}
 		default:
 			cfg.parsedFormatter = &log.TextFormatter{}
