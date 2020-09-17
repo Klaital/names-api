@@ -36,7 +36,9 @@ func main() {
 	// People
 	service.Route(
 		service.GET("/people").
-			To(FindPeopleHandler))
+			To(FindPeopleHandler).
+			Produces(restful.MIME_JSON).
+			Writes([]people.Person{}))
 	container.Add(service)
 	// TODO: places
 
@@ -66,23 +68,24 @@ func main() {
 
 func FindPeopleHandler(request *restful.Request, response *restful.Response) {
 	cfg := config.LoadConfig()
+	logger := cfg.GetLogger()
 	db, err := cfg.GetDbConn()
 	if err != nil {
-		log.WithError(err).Error("Failed to connect to db")
+		logger.WithError(err).Error("Failed to connect to db")
 		response.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	peopleSet, err := people.LoadAllPeople(db)
 	if err != nil {
-		log.WithError(err).Error("Failed to query for people")
+		logger.WithError(err).Error("Failed to query for people")
 		response.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	err = response.WriteEntity(peopleSet)
+	err = response.WriteAsJson(peopleSet)
 	if err != nil {
-		log.WithError(err).Error("Failed to serialize payload")
+		logger.WithError(err).Error("Failed to serialize payload")
 		response.WriteHeader(http.StatusInternalServerError)
 		return
 	}

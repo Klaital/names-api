@@ -5,14 +5,11 @@ services:
     ports:
       - "8080:8080"
     command: ./names-web
+    env_file:
+      - ./db.env
     environment:
       - PORT=8080
       - LOG_LEVEL=debug
       - LOG_STYLE=prettyjson
       - MIGRATION_LOCATION=file:///db/migrations
-      - DB_HOST=mysql.abandonedfactory.net
-      - DB_NAME=af_names
-      - DB_PORT=3306
-      - DB_USER=af_namer
-      - 'DB_PASS=namer*007'
       - DB_DRIVER=mysql
