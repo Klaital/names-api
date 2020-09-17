@@ -11,10 +11,14 @@ import (
 
 type ServiceConfig struct {
 	LogLevel string `env:"LOG_LEVEL" envDefault:"debug"`
+	parsedLogLevel *log.Level
 	LogFormat string `env:"LOG_FORMAT" envDefault:"prettyjson"`
+	parsedFormatter log.Formatter
+	baseLogger *log.Entry
+
 	Port string `env:"PORT" envDefault:"8080"`
 
-	DatabaseHost string `env:"DB_HOST"`
+	DatabaseHost string `env:"DB_HOST" envDefault:"mysql.abandonedfactory.net"`
 	DatabaseName string `env:"DB_NAME" envDefault:"af_names"`
 	DatabasePort int `env:"DB_PORT" envDefault:"3306"`
 	DatabaseUser string `env:"DB_USER" envDefault:"af_namer"`
@@ -25,7 +29,7 @@ type ServiceConfig struct {
 //namer$006
 
 func (cfg *ServiceConfig) getDbDSN() string {
-	return fmt.Sprintf("%s:%s@tcp(%s:%d)/%s",
+	return fmt.Sprintf("%s:%s@%s:%d/%s",
 		cfg.DatabaseUser,
 		cfg.DatabasePass,
 		cfg.DatabaseHost,
@@ -57,4 +61,39 @@ func LoadConfig() *ServiceConfig {
 		singletonConfig = cfg
 	}
 	return singletonConfig
+}
+
+func (cfg *ServiceConfig) GetLogger() *log.Entry {
+	if cfg.baseLogger != nil {
+		return cfg.baseLogger
+	}
+	if cfg.parsedLogLevel == nil {
+		lvl, err := log.ParseLevel(cfg.LogLevel)
+		if err == nil {
+			lvl = log.InfoLevel
+		}
+		cfg.parsedLogLevel = &lvl
+	}
+
+	if cfg.parsedFormatter == nil {
+		switch cfg.LogFormat {
+		case "prettyjson":
+			cfg.parsedFormatter = &log.JSONFormatter{
+				PrettyPrint:       true,
+			}
+		case "json":
+			cfg.parsedFormatter = &log.JSONFormatter{
+				PrettyPrint:       false,
+			}
+		default:
+			cfg.parsedFormatter = &log.TextFormatter{}
+		}
+	}
+
+	base := log.New()
+	base.SetFormatter(cfg.parsedFormatter)
+	base.SetLevel(*cfg.parsedLogLevel)
+	cfg.baseLogger = log.NewEntry(base) // cache the constructed logger
+	return cfg.baseLogger
+
 }

@@ -40,6 +40,20 @@ func main() {
 	container.Add(service)
 	// TODO: places
 
+	// Test connection by counting people
+	db, err := cfg.GetDbConn()
+	if err != nil {
+		log.WithFields(log.Fields{
+			"cfg": cfg,
+		}).WithError(err).Fatal("Failed to connect to database")
+	}
+	var peopleCount int
+	err = db.Get(&peopleCount, `SELECT COUNT(*) FROM people`)
+	if err != nil {
+		log.WithError(err).Fatal("Failed to count people")
+	}
+	log.WithField("peopleCount", peopleCount).Debug("Connected to people database")
+
 	httpServer := &http.Server{
 		Addr:              ":8080",
 		Handler:           container,

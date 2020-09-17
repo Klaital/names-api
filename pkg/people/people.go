@@ -2,8 +2,13 @@ package people
 
 import (
 	"database/sql"
+	"errors"
 	"github.com/jmoiron/sqlx"
 )
+
+type NameFile struct {
+	Names []Person `yaml:"names"`
+}
 
 // PersonRecord models the database row for the 'people' table
 type PersonRecord struct {
@@ -17,13 +22,13 @@ type PersonRecord struct {
 
 type Person struct {
 	Id           int      `json:"-"`
-	Name         string   `json:"name"`
-	Description  string   `json:"descr"`
-	Source       string   `json:"source"`
-	Gender       string   `json:"gender"`
-	ReferenceUrl string   `json:"ref"`
-	Nicknames    []string `json:"nicknames"`
-	Tags         []string `json:"tags"`
+	Name         string   `json:"name" yaml:"name"`
+	Description  string   `json:"descr" yaml:"description"`
+	Source       string   `json:"source" yaml:"source"`
+	Gender       string   `json:"gender" yaml:"gender"`
+	ReferenceUrl string   `json:"ref" yaml:"reference_url"`
+	Nicknames    []string `json:"nicknames" yaml:"nicknames"`
+	Tags         []string `json:"tags" yaml:"tags"`
 }
 type Nickname struct {
 	Id       int    `json:"-" db:"id"`
@@ -128,4 +133,109 @@ func LoadAllPeople(db *sqlx.DB) ([]Person, error) {
 	}
 
 	return peopleArray, nil
+}
+
+// Update adds and removes tags and nicknames in
+// addition to updating the Person's fields.
+func (p *Person) Update(updatedData *Person, db *sqlx.DB) error {
+	if p.Id == 0 {
+		return errors.New("cannot update person without an ID")
+	}
+
+	// Update the base person record
+	sqlStmt := db.Rebind(`UPDATE people SET name=:name, descr=:descr, source=:source, gender=:gender, ref=:ref WHERE id=:id`)
+	_, err := db.NamedExec(sqlStmt, p.ToPersonRecord())
+	if err != nil {
+		return err
+	}
+
+	// Add and remove nicknames
+	existingNames := make(map[string]bool, 0)
+	for i := range p.Nicknames {
+		existingNames[p.Nicknames[i]] = true
+	}
+	updatedNames := make(map[string]bool, 0)
+	for i := range updatedData.Nicknames {
+		updatedNames[updatedData.Nicknames[i]] = true
+	}
+
+	// Find new names to add
+	sqlStmt = db.Rebind(`INSERT INTO person_names (person_id, name) VALUES (?, ?)`)
+	for name := range updatedNames {
+		if !existingNames[name] {
+			_, err := db.Exec(sqlStmt, p.Id, name)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	// Find missing names to remove
+	existingTags := make(map[string]bool, 0)
+	for i := range p.Tags {
+		existingNames[p.Tags[i]] = true
+	}
+	updatedTags := make(map[string]bool, 0)
+	for i := range updatedData.Tags {
+		updatedNames[updatedData.Tags[i]] = true
+	}
+	// Find new tags to add
+	sqlStmt = db.Rebind(`INSERT INTO person_tags (person_id, name) VALUES (?, ?)`)
+	for t := range updatedTags {
+		if !existingTags[t] {
+			_, err := db.Exec(sqlStmt, p.Id, t)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	sqlStmt = db.Rebind(`DELETE FROM person_tags WHERE person_id = ? AND tag = ?`)
+	for t := range existingTags {
+		if !updatedTags[t] {
+			_, err := db.Exec(sqlStmt, p.Id, t)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+func (p *Person) Insert(db *sqlx.DB) error {
+	// Insert the base person, fetch their new ID, then insert the tags and nicknames
+	sqlStmt := db.Rebind(`INSERT INTO people (name, descr, source, gender, ref) VALUES (:name, :descr, :source, :gender, :ref)`)
+	resp, err := db.NamedExec(sqlStmt, p.ToPersonRecord())
+	if err != nil {
+		return err
+	}
+	id, err := resp.LastInsertId()
+	if err != nil {
+		return err
+	}
+	if id == 0 {
+		return errors.New("invalid row ID returned")
+	}
+
+	sqlStmt = db.Rebind(`INSERT INTO people_tags (person_id, tag) VALUES (:person_id, :tag)`)
+	for i := range p.Tags {
+		_, err = db.NamedExec(sqlStmt, PersonTag{
+			PersonId: int(id),
+			Tag:      p.Tags[i],
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	sqlStmt = db.Rebind(`INSERT INTO people_names (person_id, name) VALUES (:person_id, :name)`)
+	for i := range p.Nicknames {
+		_, err = db.NamedExec(sqlStmt, Nickname{
+			PersonId: int(id),
+			Name:     p.Nicknames[i],
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
